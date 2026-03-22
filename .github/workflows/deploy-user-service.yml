@@ -1,0 +1,97 @@
+# Approach B: build & push to ECR, then on EC2: compose (redis/rabbitmq) + pull + run app container.
+# Prerequisites: GitHub secrets (see docs/ec2-ci-cd-approach-b.md §5), ECR repo, EC2 IAM role for ECR pull.
+#
+# Local manual equivalents (on EC2):
+#   docker build -t user-backend-service:latest .
+#   docker compose up -d rabbitmq redis
+#   docker rm -f user-backend-service
+#   docker run -d --name user-backend-service ... user-backend-service:latest
+# In CI, the image comes from ECR instead of a local :latest build.
+
+name: Deploy user-service (ECR + EC2)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        id: build-push
+        env:
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          set -e
+          IMAGE_TAG="${GITHUB_SHA::7}"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGION="${{ secrets.AWS_REGION }}"
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 \
+            || { echo "ECR repository not found: $ECR_REPOSITORY"; exit 1; }
+
+          docker build -t "${ECR_REPOSITORY}:${IMAGE_TAG}" .
+          docker tag "${ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY=${ECR_REGISTRY}" >> "$GITHUB_ENV"
+
+      - name: Deploy to EC2 (compose + pull + run)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.EC2_APP_DIR }}"
+            if [ -z "$APP_DIR" ]; then
+              APP_DIR="/home/${{ secrets.EC2_USER }}/user-backend-service"
+            fi
+            cd "$APP_DIR"
+
+            IMAGE_TAG="${{ env.IMAGE_TAG }}"
+            ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
+            ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"
+            IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+              | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+            docker compose up -d rabbitmq redis
+
+            docker pull "${IMAGE}"
+
+            docker rm -f user-backend-service || true
+
+            docker run -d \
+              --name user-backend-service \
+              -p 4000:4000 \
+              --network user-backend-service_default \
+              --env-file .env \
+              -e REDIS_URL=redis://redis:6379 \
+              -e RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672 \
+              "${IMAGE}"
+
+      # Use this locally on EC2 for follow-up: docker logs -f user-backend-service
+      - name: Show deploy hint
+        run: |
+          echo "Deployed ${{ env.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+          echo "On EC2: docker logs -f user-backend-service"
