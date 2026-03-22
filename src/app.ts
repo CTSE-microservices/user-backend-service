@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Swagger UI at /api-docs (try it: http://localhost:4000/api-docs)
+// Swagger UI at /api-docs — server list uses relative /api/v1 first so "Try it out" works behind any host
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customSiteTitle: 'User Service API',
   customCss: '.swagger-ui .topbar { display: none }',

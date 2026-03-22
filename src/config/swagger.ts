@@ -9,9 +9,12 @@ export const swaggerDocument = {
     version: '1.0.0',
     description: 'User microservice for e-commerce: auth, registration, user CRUD.',
   },
+  // Put relative URL first: Swagger UI uses the first server for "Try it out".
+  // Relative `/api/v1` resolves to the same host as the docs (works on EC2, HTTPS, CI/CD).
+  // If `localhost` is first, remote browsers call their own machine → "Failed to fetch".
   servers: [
-    { url: `http://localhost:${config.port}${apiPrefix}`, description: 'Local' },
-    { url: apiPrefix, description: 'Current host' },
+    { url: apiPrefix, description: 'Current host (recommended)' },
+    { url: `http://localhost:${config.port}${apiPrefix}`, description: 'Local dev (explicit)' },
   ],
   tags: [
     { name: 'Auth', description: 'Login and token verification' },
