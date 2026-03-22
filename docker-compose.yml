@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dh84@huH#7dn&3hd
+      POSTGRES_DB: SnoutScan_DB
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/001-postgres-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d user_service']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      API_PREFIX: /api/v1
+
+      DATABASE_URL: 'postgresql://postgres.ipspbpifkbxbuxfqafdj:dh84%40huH%237dn%263hd@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres'
+
+      JWT_SECRET: '9TWpjmw8EvXCXcATUPF4t8efBmX1Dizo13k4HTP5mIG'
+      JWT_EXPIRES_IN: '7d'
+      JWT_EXPIRATION_HOURS: '24'
+      JWT_ISSUER: UserService
+      JWT_AUDIENCE: UserServiceClient
+
+      RABBITMQ_URL: 'amqp://guest:guest@rabbitmq:5672'
+      RABBITMQ_EXCHANGE: user.events
+      RABBITMQ_USER_REGISTERED_QUEUE: user-service.user-registered
+      RABBITMQ_USER_REGISTERED_ROUTING_KEY: user.registered
+      ENABLE_USER_REGISTERED_CONSUMER: 'true'
+
+      REDIS_URL: 'redis://redis:6379'
+      REDIS_TTL_SECONDS: '60'
+
+      # Prisma behavior inside the container (good for first deployment).
+      PRISMA_SYNC_MODE: dbpush
+      PRISMA_SEED: 'true'
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
