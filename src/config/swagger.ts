@@ -9,10 +9,10 @@ export const swaggerDocument = {
     version: '1.0.0',
     description: 'User microservice for e-commerce: auth, registration, user CRUD.',
   },
-  servers: [
-    { url: `http://localhost:${config.port}${apiPrefix}`, description: 'Local' },
-    { url: apiPrefix, description: 'Current host' },
-  ],
+  // Default `servers` (overridden in app.ts per request for /api-docs).
+  // Never list http://localhost here as the only option: browsers block public pages
+  // from calling loopback (Chrome Private Network Access / CORS-RFC1918).
+  servers: [{ url: apiPrefix, description: 'Relative (runtime overrides in app.ts)' }],
   tags: [
     { name: 'Auth', description: 'Login and token verification' },
     { name: 'Users', description: 'User registration and management' },
