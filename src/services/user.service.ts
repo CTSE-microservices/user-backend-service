@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import { userRepository } from '../repositories';
 import { CreateUserDto, UpdateUserDto, UserResponse } from '../types';
 import { NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
+import { publishUserRegistered } from '../integrations/rabbitmq';
+import { cacheGetJson, cacheSetJson, isRedisReady } from '../integrations/redis';
 
 const SALT_ROUNDS = 10;
 
@@ -25,15 +27,47 @@ export const userService = {
       email: dto.email.toLowerCase(),
       passwordHash,
     });
+
+    // Publish an integration event for other microservices.
+    // Do not block user registration if RabbitMQ is temporarily unavailable.
+    try {
+      await publishUserRegistered({
+        userId: id,
+        email: user.email,
+        roleId: user.roleId,
+        userChannelId: user.userChannelId,
+      });
+    } catch (err) {
+      console.warn('[RabbitMQ] Failed to publish UserRegistered:', err instanceof Error ? err.message : err);
+    }
+
     return toUserResponse(user);
   },
 
   async getById(id: string): Promise<UserResponse> {
-    const user = await userRepository.findById(id);
-    if (!user) {
-      throw new NotFoundError('User', id);
+    const cacheKey = `user:${id}`;
+    if (isRedisReady()) {
+      try {
+        const cached = await cacheGetJson<UserResponse>(cacheKey);
+        if (cached) return cached;
+      } catch {
+        // ignore cache errors
+      }
     }
-    return toUserResponse(user);
+
+    const user = await userRepository.findById(id);
+    if (!user) throw new NotFoundError('User', id);
+
+    const response = toUserResponse(user);
+    if (isRedisReady()) {
+      try {
+        await cacheSetJson(cacheKey, response);
+      } catch {
+        // ignore cache errors
+      }
+    }
+
+    return response;
   },
 
   async update(id: string, dto: UpdateUserDto): Promise<UserResponse> {

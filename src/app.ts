@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Swagger UI at /api-docs (try it: http://localhost:3000/api-docs)
+// Swagger UI at /api-docs (try it: http://localhost:4000/api-docs)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customSiteTitle: 'User Service API',
   customCss: '.swagger-ui .topbar { display: none }',

@@ -61,9 +61,17 @@ user-backend-service/
 4. `npm run prisma:generate`
 5. `npm run dev` (development) or `npm run build && npm start` (production).
 
+## Default port
+
+The app listens on **`PORT`** (default **4000**). Override in `.env` if needed.
+
+## Docs
+
+- [Run locally, Docker, EC2, and RabbitMQ integration](docs/running-local-docker-ec2-and-integration.md)
+
 ## Swagger (API docs)
 
-Run the server and open **http://localhost:3000/api-docs** to explore and test all endpoints (Try it out).
+Run the server and open **http://localhost:4000/api-docs** to explore and test all endpoints (Try it out).
 
 ## API (prefix: `/api/v1`)
 
@@ -79,7 +87,7 @@ Run the server and open **http://localhost:3000/api-docs** to explore and test a
 
 ```bash
 docker build -t user-backend-service .
-docker run -p 3000:3000 -e DATABASE_URL="postgresql://..." user-backend-service
+docker run -p 4000:4000 -e DATABASE_URL="postgresql://..." user-backend-service
 ```
 
 ## Roles & Channels

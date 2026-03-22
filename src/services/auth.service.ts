@@ -25,7 +25,8 @@ export function generateJwtToken(
 ): string {
   const secret = getJwtSecret();
   const expirationHours = config.jwt.expirationHours;
-  const expiresIn = `${expirationHours}h`;
+  // Use seconds (number) — satisfies @types/jsonwebtoken SignOptions with strict TS
+  const expiresInSeconds = expirationHours * 3600;
 
   return jwt.sign(
     {
@@ -40,7 +41,7 @@ export function generateJwtToken(
     {
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
-      expiresIn,
+      expiresIn: expiresInSeconds,
     }
   );
 }
