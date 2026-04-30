@@ -3,10 +3,9 @@ import { User, Prisma } from '@prisma/client';
 import { CreateUserDto, UpdateUserDto } from '../types';
 
 export const userRepository = {
-  async create(data: CreateUserDto & { id: string; passwordHash: string }): Promise<User> {
+  async create(data: CreateUserDto & { passwordHash: string }): Promise<User> {
     return prisma.user.create({
       data: {
-        id: data.id,
         username: data.username,
         email: data.email,
         phoneNumber: data.phoneNumber,
@@ -17,7 +16,7 @@ export const userRepository = {
     });
   },
 
-  async findById(id: string): Promise<User | null> {
+  async findById(id: number): Promise<User | null> {
     return prisma.user.findUnique({
       where: { id },
       include: { role: true, userChannel: true, addresses: true },
@@ -32,7 +31,7 @@ export const userRepository = {
   },
 
   async update(
-    id: string,
+    id: number,
     data: Partial<UpdateUserDto> & { passwordHash?: string }
   ): Promise<User> {
     const { passwordHash, ...rest } = data;
@@ -44,7 +43,7 @@ export const userRepository = {
     });
   },
 
-  async updateLastLogin(id: string): Promise<void> {
+  async updateLastLogin(id: number): Promise<void> {
     await prisma.user.update({
       where: { id },
       data: { lastLoginAt: new Date() },

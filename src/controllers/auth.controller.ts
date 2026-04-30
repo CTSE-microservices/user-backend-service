@@ -3,6 +3,14 @@ import { authService } from '../services/auth.service';
 import { userRepository } from '../repositories';
 import { UnauthorizedError } from '../utils/errors';
 
+function parseJwtUserId(rawId: string): number {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new UnauthorizedError('Invalid token: User ID is invalid.');
+  }
+  return id;
+}
+
 /**
  * GET /api/v1/auth/verify
  * Verify JWT and return current user profile. Requires Authorization: Bearer <token>.
@@ -15,7 +23,8 @@ export async function verifyToken(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const user = await userRepository.findById(userId);
+    const parsedUserId = parseJwtUserId(userId);
+    const user = await userRepository.findById(parsedUserId);
     if (!user) {
       res.status(404).json({ success: false, error: { message: 'User not found.' } });
       return;
