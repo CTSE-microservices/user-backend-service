@@ -1,8 +1,7 @@
-import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import { userRepository } from '../repositories';
 import { CreateUserDto, UpdateUserDto, UserResponse } from '../types';
-import { NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
+import { NotFoundError, ConflictError } from '../utils/errors';
 import { publishUserRegistered } from '../integrations/rabbitmq';
 import { cacheGetJson, cacheSetJson, isRedisReady } from '../integrations/redis';
 
@@ -20,10 +19,8 @@ export const userService = {
       throw new ConflictError('User with this email already exists');
     }
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    const id = uuidv4();
     const user = await userRepository.create({
       ...dto,
-      id,
       email: dto.email.toLowerCase(),
       passwordHash,
     });
@@ -32,7 +29,7 @@ export const userService = {
     // Do not block user registration if RabbitMQ is temporarily unavailable.
     try {
       await publishUserRegistered({
-        userId: id,
+        userId: user.id,
         email: user.email,
         roleId: user.roleId,
         userChannelId: user.userChannelId,
@@ -44,7 +41,7 @@ export const userService = {
     return toUserResponse(user);
   },
 
-  async getById(id: string): Promise<UserResponse> {
+  async getById(id: number): Promise<UserResponse> {
     const cacheKey = `user:${id}`;
     if (isRedisReady()) {
       try {
@@ -70,7 +67,7 @@ export const userService = {
     return response;
   },
 
-  async update(id: string, dto: UpdateUserDto): Promise<UserResponse> {
+  async update(id: number, dto: UpdateUserDto): Promise<UserResponse> {
     const existing = await userRepository.findById(id);
     if (!existing) {
       throw new NotFoundError('User', id);

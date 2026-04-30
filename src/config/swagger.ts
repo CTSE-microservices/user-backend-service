@@ -39,7 +39,7 @@ export const swaggerDocument = {
       LoginResponse: {
         type: 'object',
         properties: {
-          userId: { type: 'string', format: 'uuid' },
+          userId: { type: 'integer' },
           token: { type: 'string', description: 'JWT' },
           username: { type: 'string', nullable: true },
           email: { type: 'string' },
@@ -75,7 +75,7 @@ export const swaggerDocument = {
       UserProfile: {
         type: 'object',
         properties: {
-          id: { type: 'string', format: 'uuid' },
+          id: { type: 'integer' },
           username: { type: 'string', nullable: true },
           email: { type: 'string' },
           phoneNumber: { type: 'string', nullable: true },
@@ -219,7 +219,7 @@ export const swaggerDocument = {
         tags: ['Users'],
         summary: 'Get user by ID',
         parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
         ],
         responses: {
           '200': {
@@ -243,7 +243,7 @@ export const swaggerDocument = {
         tags: ['Users'],
         summary: 'Update user',
         parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'integer' } },
         ],
         requestBody: {
           content: {

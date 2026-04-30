@@ -18,7 +18,7 @@ function getJwtSecret(): string {
  * Generate JWT for authenticated user.
  */
 export function generateJwtToken(
-  userId: string,
+  userId: number,
   email: string,
   role: string,
   roleId: number
@@ -30,7 +30,7 @@ export function generateJwtToken(
 
   return jwt.sign(
     {
-      sub: userId,
+      sub: String(userId),
       unique_name: email,
       role,
       roleId,

@@ -41,7 +41,7 @@ export interface LoginDto {
 }
 
 export interface LoginResponseDto {
-  userId: string;
+  userId: number;
   token: string;
   username: string | null;
   email: string;

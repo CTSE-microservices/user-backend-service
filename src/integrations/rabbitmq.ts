@@ -5,7 +5,7 @@ export type UserRegisteredEvent = {
   type: 'UserRegistered';
   timestamp: string;
   payload: {
-    userId: string;
+    userId: number;
     email: string;
     roleId: number;
     userChannelId: number;
