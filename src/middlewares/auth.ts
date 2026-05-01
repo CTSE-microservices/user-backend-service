@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UnauthorizedError, ServiceUnavailableError } from '../utils/errors';
+import { UnauthorizedError } from '../utils/errors';
 import { JwtPayload } from '../types';
 import { config } from '../config';
 import { isRedisReady, isTokenAllowlisted } from '../integrations/redis';
@@ -49,20 +49,18 @@ export async function authenticate(
       return;
     }
 
-    if (!isRedisReady()) {
-      next(new ServiceUnavailableError('Token store unavailable'));
-      return;
-    }
-
-    try {
-      const allowed = await isTokenAllowlisted(decoded.jti);
-      if (!allowed) {
-        next(new UnauthorizedError('Token revoked or expired'));
-        return;
+    if (isRedisReady()) {
+      try {
+        const allowed = await isTokenAllowlisted(decoded.jti);
+        if (!allowed) {
+          next(new UnauthorizedError('Token revoked or expired'));
+          return;
+        }
+      } catch (err) {
+        console.warn('[Auth] Redis allowlist check failed:', err instanceof Error ? err.message : err);
       }
-    } catch (err) {
-      next(new ServiceUnavailableError('Token store unavailable'));
-      return;
+    } else {
+      console.warn('[Auth] Redis unavailable, skipping token allowlist');
     }
 
     req.user = {

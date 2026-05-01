@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { userRepository } from '../repositories';
 import { config } from '../config';
 import { LoginDto, LoginResponseDto } from '../types';
-import { UnauthorizedError, ServiceUnavailableError } from '../utils/errors';
+import { UnauthorizedError } from '../utils/errors';
 import { allowlistToken, isRedisReady } from '../integrations/redis';
 
 function getJwtSecret(): string {
@@ -77,10 +77,11 @@ export async function login(dto: LoginDto): Promise<LoginResponseDto | null> {
     roleName,
     user.roleId
   );
-  if (!isRedisReady()) {
-    throw new ServiceUnavailableError('Token store unavailable');
+  if (isRedisReady()) {
+    await allowlistToken(jti, expiresInSeconds);
+  } else {
+    console.warn('[Auth] Redis unavailable, skipping token allowlist');
   }
-  await allowlistToken(jti, expiresInSeconds);
 
   return {
     userId: user.id,
