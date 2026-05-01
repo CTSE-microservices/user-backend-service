@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { UnauthorizedError } from '../utils/errors';
 import { JwtPayload } from '../types';
 import { config } from '../config';
+import { isRedisReady, isTokenAllowlisted } from '../integrations/redis';
 
 declare global {
   namespace Express {
@@ -26,7 +27,11 @@ interface DecodedPayload {
 /**
  * Verify JWT and set req.user. Expects: Authorization: Bearer <token>
  */
-export function authenticate(req: Request, _res: Response, next: NextFunction): void {
+export async function authenticate(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     next(new UnauthorizedError('Missing or invalid Authorization header'));
@@ -38,6 +43,26 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
     }) as DecodedPayload;
+
+    if (!decoded.jti) {
+      next(new UnauthorizedError('Invalid token: missing token id'));
+      return;
+    }
+
+    if (isRedisReady()) {
+      try {
+        const allowed = await isTokenAllowlisted(decoded.jti);
+        if (!allowed) {
+          next(new UnauthorizedError('Token revoked or expired'));
+          return;
+        }
+      } catch (err) {
+        console.warn('[Auth] Redis allowlist check failed:', err instanceof Error ? err.message : err);
+      }
+    } else {
+      console.warn('[Auth] Redis unavailable, skipping token allowlist');
+    }
+
     req.user = {
       sub: decoded.sub,
       email: decoded.unique_name ?? decoded.email ?? '',

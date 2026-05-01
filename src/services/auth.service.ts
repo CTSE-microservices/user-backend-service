@@ -5,6 +5,7 @@ import { userRepository } from '../repositories';
 import { config } from '../config';
 import { LoginDto, LoginResponseDto } from '../types';
 import { UnauthorizedError } from '../utils/errors';
+import { allowlistToken, isRedisReady } from '../integrations/redis';
 
 function getJwtSecret(): string {
   const secret = config.jwt.secret;
@@ -22,19 +23,20 @@ export function generateJwtToken(
   email: string,
   role: string,
   roleId: number
-): string {
+): { token: string; jti: string; expiresInSeconds: number } {
   const secret = getJwtSecret();
   const expirationHours = config.jwt.expirationHours;
   // Use seconds (number) — satisfies @types/jsonwebtoken SignOptions with strict TS
   const expiresInSeconds = expirationHours * 3600;
+  const jti = uuidv4();
 
-  return jwt.sign(
+  const token = jwt.sign(
     {
       sub: String(userId),
       unique_name: email,
       role,
       roleId,
-      jti: uuidv4(),
+      jti,
       iat: Math.floor(Date.now() / 1000),
     },
     secret,
@@ -44,6 +46,8 @@ export function generateJwtToken(
       expiresIn: expiresInSeconds,
     }
   );
+
+  return { token, jti, expiresInSeconds };
 }
 
 /**
@@ -67,7 +71,17 @@ export async function login(dto: LoginDto): Promise<LoginResponseDto | null> {
   const expirationHours = config.jwt.expirationHours;
   const expiresAt = new Date(Date.now() + expirationHours * 60 * 60 * 1000);
 
-  const token = generateJwtToken(user.id, user.email, roleName, user.roleId);
+  const { token, jti, expiresInSeconds } = generateJwtToken(
+    user.id,
+    user.email,
+    roleName,
+    user.roleId
+  );
+  if (isRedisReady()) {
+    await allowlistToken(jti, expiresInSeconds);
+  } else {
+    console.warn('[Auth] Redis unavailable, skipping token allowlist');
+  }
 
   return {
     userId: user.id,
