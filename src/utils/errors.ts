@@ -37,3 +37,10 @@ export class BadRequestError extends AppError {
     this.name = 'BadRequestError';
   }
 }
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service unavailable') {
+    super(503, message, 'SERVICE_UNAVAILABLE');
+    this.name = 'ServiceUnavailableError';
+  }
+}
