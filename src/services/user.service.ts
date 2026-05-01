@@ -6,7 +6,7 @@ import { publishUserRegistered } from '../integrations/rabbitmq';
 import { cacheGetJson, cacheSetJson, isRedisReady } from '../integrations/redis';
 
 const SALT_ROUNDS = 10;
-
+//commi
 function toUserResponse(user: { passwordHash: string; [k: string]: unknown }): UserResponse {
   const { passwordHash: _, ...rest } = user;
   return rest as UserResponse;
