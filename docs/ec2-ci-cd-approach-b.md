@@ -173,3 +173,8 @@ Most likely `.env` values on EC2 are incorrect.
 - Keep `.env` out of GitHub
 - Only store secrets in GitHub “Secrets” or on EC2 as `.env`
 
+
+
+Url of user service after put a load balancer 
+http://user-service-alb-947363970.eu-north-1.elb.amazonaws.com/api-docs/
+
